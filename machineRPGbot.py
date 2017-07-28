@@ -1,74 +1,99 @@
 #!/bin/python
-import twitter,pickle,random,time,json,sys
+import twitter,pickle,random,time,json,sys,signal
+
+class machineRPGbot:
+
+    def __init__(self):
+        self.seenTweets = []
+        self.lifetimes = {}
+        self.mortalities = []
+        self.hashtag = "#machineGameTest"
+        self.obituaries = ["You have died. Please do not post any more messages in "+self.hashtag,
+        "You have been decommissioned. Please do not post any more messages in "+self.hashtag,
+        "The world has ended. Please do not post any more messages in "+self.hashtag]
+        self.myTwitterId = 0
+
+    def main(self):     
+        try:
+            self.seenTweets = pickle.load(open("pickles/seentweets.pickle", "rb"))
+        except (OSError, IOError) as e:
+            self.seenTweets = []
+            pickle.dump(self.seenTweets, open("pickles/seentweets.pickle", "wb"))
+
+        try:
+            self.lifetimes = pickle.load(open("pickles/lifetimes.pickle", "rb"))
+        except (OSError, IOError) as e:
+            self.lifetimes = {}
+            pickle.dump(self.lifetimes, open("pickles/lifetimes.pickle", "wb"))
+
+        try:
+            self.mortalities = pickle.load(open("pickles/mortalities.pickle", "rb"))
+        except (OSError, IOError) as e:
+            self.mortalities = []
+            pickle.dump(self.mortalities, open("pickles/mortalities.pickle", "wb"))
 
 
-hashtag = "#machineGameTest"
-obituaries = ["You have died. Please do not post any more messages in "+hashtag,
-    "You have been decommissioned. Please do not post any more messages in "+hashtag,
-    "The world has ended. Please do not post any more messages in "+hashtag]
+        json_data=open("credentials.json").read()
+
+        creds = json.loads(json_data)
+        self.obituaries = creds['obituaries']
+        self.hashtag = creds['hashtag']
+
+        api = twitter.Api(consumer_key=creds['consumer_key'],
+                            consumer_secret=creds['consumer_secret'],
+                            access_token_key=creds['access_token'],
+                            access_token_secret=creds['access_token_secret'])
+
+        verified = api.VerifyCredentials()
+        print(verified)
+        self.myId = verified.id
+
+        while True:
+            print("Checking hashtag!")
+            results = api.GetSearch(self.hashtag)
+            for result in results:
+                print("\n\nExamining tweet:"+str(result.id)+"\nfrom "+result.user.screen_name+"\ncontents:"+result.text)
+                if self.legalStatus(result):
+                    try:
+                        api.PostRetweet(result.id)
+                    except twitter.TwitterError as e:
+                        print("\n TWITTER ERROR:\n")
+                        print(e)
+                    if self.isThisTheEnd(result.user):
+                        obituary = random.choice(self.obituaries)
+                        api.PostDirectMessage(obituary,result.user.id)
+            pickle.dump(self.seenTweets, open("pickles/seentweets.pickle", "wb"))
+            pickle.dump(self.lifetimes, open("pickles/lifetimes.pickle", "wb"))
+            pickle.dump(self.mortalities, open("pickles/mortalities.pickle", "wb"))
+            time.sleep(300)
 
 
-try:
-    seenTweets = pickle.load(open("seenTweets.pickle", "rb"))
-except (OSError, IOError) as e:
-    seenTweets = []
-    pickle.dump(seenTweets, open("seenTweets.pickle", "wb"))
-
-try:
-    lifetimes = pickle.load(open("lifetimes.pickle", "rb"))
-except (OSError, IOError) as e:
-    lifetimes = {}
-    pickle.dump(lifetimes, open("lifetimes.pickle", "wb"))
-
-try:
-    mortalities = pickle.load(open("mortalities.pickle", "rb"))
-except (OSError, IOError) as e:
-    mortalities = []
-    pickle.dump(mortalities, open("mortalities.pickle", "wb"))
-
-
-json_data=open("credentials.json").read()
-
-creds = json.loads(json_data)
-
-
-api = twitter.Api(consumer_key=creds['consumer_key'],
-                      consumer_secret=creds['consumer_secret'],
-                      access_token_key=creds['access_token'],
-                      access_token_secret=creds['access_token_secret'])
-
-print(api.VerifyCredentials())
-try:
-    while True:
-        results = api.GetSearch(hashtag)
-        for result in results:
-            if legalStatus(result):
-                api.PostRetweet(result.original_id)
-                if isThisTheEnd(result.user):
-                    obituary = random.choice(obituaries)
-                    api.PostDirectMessage(obituary,result.user.id)
-        pickle.dump(seenTweets, open("seentweets.pickle", "wb"))
-        pickle.dump(lifetimes, open("lifetimes.pickle", "wb"))
-        pickle.dump(mortalities, open("mortalities.pickle", "wb"))
-        time.sleep(300)
-except KeyboardInterrupt:
-    print('interrupted!')
-    sys.exit()
         
-def legalStatus(result):
-    if result.id not in seenTweets and result.user.id not in mortalities:
-        seenTweets.append(result.id)
-        return True
-    return False
+    def legalStatus(self,result):
+        print ("usersid:"+str(result.user.id)+" myid:"+str(self.myId))
+        if result.id not in self.seenTweets and result.user.id not in self.mortalities and result.user.id != self.myId:
+            self.seenTweets.append(result.id)
+            print("\ntweet is fresh and new and good")
+            return True
+        print("\ntweet is not legal for processing. It's old or from the dead")
+        return False
 
-def isThisTheEnd(user){
-    if(user.id not in lifetimes){
-        lifetimes[user.id] = 0
-    }
-    lifetimes[user.id] += 1
-    if(lifetimes[user.id] > 3 and random.choice() < 0.15){
-        mortalities.append(user.id)
-        return True
-    }
-    return False
-}
+    def isThisTheEnd(self,user):
+        if user.id not in self.lifetimes:
+            self.lifetimes[user.id] = 0
+        self.lifetimes[user.id] += 1
+        if self.lifetimes[user.id] > 3 and random.random() < 0.15:
+            self.mortalities.append(user.id)
+            print("\ntweet has caused the death of it's creator")
+            return True
+        print("\ntweet has escaped the clutches of death")
+        return False
+
+if __name__ == '__main__':
+    machineRPGbot().main()
+
+def signal_handler(signal, frame):
+    print("Ctrl+C captured in driver!")
+    sys.exit()
+
+signal.signal(signal.SIGINT, signal_handler)
