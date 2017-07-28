@@ -1,5 +1,5 @@
 #!/bin/python
-import twitter,pickle,random,time
+import twitter,pickle,random,time,json,sys
 
 
 hashtag = "#machineGameTest"
@@ -27,25 +27,33 @@ except (OSError, IOError) as e:
     pickle.dump(mortalities, open("mortalities.pickle", "wb"))
 
 
-api = twitter.Api(consumer_key='consumer_key',
-                      consumer_secret='consumer_secret',
-                      access_token_key='access_token',
-                      access_token_secret='access_token_secret')
+json_data=open("credentials.json").read()
+
+creds = json.loads(json_data)
+
+
+api = twitter.Api(consumer_key=creds['consumer_key'],
+                      consumer_secret=creds['consumer_secret'],
+                      access_token_key=creds['access_token'],
+                      access_token_secret=creds['access_token_secret'])
 
 print(api.VerifyCredentials())
-
-while True:
-    results = api.GetSearch(hashtag)
-    for result in results:
-        if legalStatus(result):
-            api.PostRetweet(result.original_id)
-            if isThisTheEnd(result.user):
-                obituary = random.choice(obituaries)
-                api.PostDirectMessage(obituary,result.user.id)
-    pickle.dump(seenTweets, open("seentweets.pickle", "wb"))
-    pickle.dump(lifetimes, open("lifetimes.pickle", "wb"))
-    pickle.dump(mortalities, open("mortalities.pickle", "wb"))
-    time.sleep(300)
+try:
+    while True:
+        results = api.GetSearch(hashtag)
+        for result in results:
+            if legalStatus(result):
+                api.PostRetweet(result.original_id)
+                if isThisTheEnd(result.user):
+                    obituary = random.choice(obituaries)
+                    api.PostDirectMessage(obituary,result.user.id)
+        pickle.dump(seenTweets, open("seentweets.pickle", "wb"))
+        pickle.dump(lifetimes, open("lifetimes.pickle", "wb"))
+        pickle.dump(mortalities, open("mortalities.pickle", "wb"))
+        time.sleep(300)
+except KeyboardInterrupt:
+    print('interrupted!')
+    sys.exit()
         
 def legalStatus(result):
     if result.id not in seenTweets and result.user.id not in mortalities:
