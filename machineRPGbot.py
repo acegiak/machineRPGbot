@@ -20,6 +20,12 @@ except (OSError, IOError) as e:
     lifetimes = {}
     pickle.dump(lifetimes, open("lifetimes.pickle", "wb"))
 
+try:
+    mortalities = pickle.load(open("mortalities.pickle", "rb"))
+except (OSError, IOError) as e:
+    mortalities = []
+    pickle.dump(mortalities, open("mortalities.pickle", "wb"))
+
 
 api = twitter.Api(consumer_key='consumer_key',
                       consumer_secret='consumer_secret',
@@ -38,9 +44,10 @@ while True:
                 api.PostDirectMessage(obituary,result.user.id)
     pickle.dump(seenTweets, open("seentweets.pickle", "wb"))
     pickle.dump(lifetimes, open("lifetimes.pickle", "wb"))
+    pickle.dump(mortalities, open("mortalities.pickle", "wb"))
         
 def legalStatus(result):
-    if result.id not in seenTweets:
+    if result.id not in seenTweets and result.user.id not in mortalities:
         seenTweets.append(result.id)
         return True
     return False
@@ -50,7 +57,8 @@ def isThisTheEnd(user){
         lifetimes[user.id] = 0
     }
     lifetimes[user.id] += 1
-    if(lifetimes[userid] > 3 and random.choice() < 0.15){
+    if(lifetimes[user.id] > 3 and random.choice() < 0.15){
+        mortalities.append(user.id)
         return True
     }
     return False
