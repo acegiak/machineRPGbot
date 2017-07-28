@@ -1,5 +1,5 @@
 #!/bin/python
-import twitter,pickle,random
+import twitter,pickle,random,time
 
 
 hashtag = "#machineGameTest"
@@ -45,6 +45,7 @@ while True:
     pickle.dump(seenTweets, open("seentweets.pickle", "wb"))
     pickle.dump(lifetimes, open("lifetimes.pickle", "wb"))
     pickle.dump(mortalities, open("mortalities.pickle", "wb"))
+    time.sleep(300)
         
 def legalStatus(result):
     if result.id not in seenTweets and result.user.id not in mortalities:
