@@ -1,5 +1,5 @@
 #!/bin/python
-import twitter,pickle,random,time,json,sys,signal
+import twitter,pickle,random,time,json,sys,signal,webapp2
 
 class machineRPGbot:
 
@@ -13,7 +13,7 @@ class machineRPGbot:
         "The world has ended. Please do not post any more messages in "+self.hashtag]
         self.myTwitterId = 0
 
-    def main(self):     
+    def main(self):
         try:
             self.seenTweets = pickle.load(open("pickles/seentweets.pickle", "rb"))
         except (OSError, IOError) as e:
@@ -68,7 +68,7 @@ class machineRPGbot:
             time.sleep(300)
 
 
-        
+
     def legalStatus(self,result):
         print ("usersid:"+str(result.user.id)+" myid:"+str(self.myId))
         if result.id not in self.seenTweets and result.user.id not in self.mortalities and result.user.id != self.myId:
@@ -89,11 +89,13 @@ class machineRPGbot:
         print("\ntweet has escaped the clutches of death")
         return False
 
-if __name__ == '__main__':
-    machineRPGbot().main()
+class MainPage(webapp2.RequestHandler):
+    def get(self):
+        machineRPGbot().main()
+        self.response.headers['Content-Type'] = 'text/plain'
+        self.response.write('Hello, World!')
 
-def signal_handler(signal, frame):
-    print("Ctrl+C captured in driver!")
-    sys.exit()
 
-signal.signal(signal.SIGINT, signal_handler)
+app = webapp2.WSGIApplication([
+    ('/', MainPage),
+], debug=True)
